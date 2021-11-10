@@ -47,13 +47,15 @@ class FontManager:
             surface.blit(surf, text_rect)
 
 
+
 class Option:
+    
     input = InputManager()
     font = FontManager()
     clock = pygame.time.Clock()
 
     def __init__(self, text: str, font_str: str, color: Color = Color(255, 255, 255)):
-
+        self.add = Extention(self)
         self._event = Event()
         self.text = text
         self._pos = None
@@ -112,11 +114,24 @@ class Option:
     def set_font_str(self, font_str: str):
         self._font_str = font_str
 
+class Extention:
+    def __init__(self, option:Option):
+        self._option = option
+    def highlight(self, font_str):
+        return HighlightOption(self._option, font_str)
+    def input(self, input):
+        return InputOption(self._option, input)
+    def menu(self, surface: pygame.Surface, title_pos: tuple[int, int], title_font_str: str, options: list[Option] = [], background_color=COLOR_BLACK, cursor: pygame.Surface = None):
+        return Menu(self._option, surface, title_pos, title_font_str, options, background_color, cursor)
+    def select_listener(self, func:FunctionType):
+        self._option._event.subscribe('on_select', func)
+        return self._option
 
 class Decorator(Option):
     def __init__(self, option: Option):
         self._option = option
         self.color = option.color
+        self.add = option.add
 
     def option(self):
         return self._option
@@ -177,7 +192,7 @@ class HighlightOption(Decorator):
 
 
 class Menu(Decorator):
-    def __init__(self, option: Option, surface: pygame.Surface, title_pos: tuple[int, int], title_font_str: str, options: list[Option] = [], background_color=COLOR_BLACK, cursor: pygame.Surface = None):
+    def __init__(self, option: Option, surface: pygame.Surface, title_pos: tuple[int, int], title_font_str: str, options: list[Option] = [], background_color=COLOR_BLACK, cursor: pygame.Surface=None):
         super().__init__(option)
         # private:
         self._surface = surface
@@ -218,7 +233,7 @@ class Menu(Decorator):
                 # draw options:
                 last_height = Option.font.get_font(
                     self.title_font_str).get_height() + self._title_pos[1]
-                for option in self._options:
+                for option in self.get_options():
                     option._pos = (self._title_pos[0], last_height)
                     option.draw(self._surface, option._pos)
 
@@ -262,6 +277,7 @@ class Menu(Decorator):
 
     def set_options(self, options: list[Option]):
         self._options = options
+        return self
 
     def get_options(self):
         return self._options

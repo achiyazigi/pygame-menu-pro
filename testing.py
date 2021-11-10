@@ -20,19 +20,21 @@ Option.font.add_font('link_font', pygame.font.SysFont('Arial', 30))
 Option.font.add_font('highlight_link_font', pygame.font.SysFont('Arial', 30, bold=True))
 
 
-def exit_menu(menu:Menu, option:Option):
+def exit_menu(menu:Menu):
     menu.run_display = False
     Option.input.reset_last_checked()
 
 cursor = Option.font.get_font('option_font').render('*', True, Color(255,255,255))
 
-start = HighlightOption(Option('Start', 'option_font'), 'highlight_font')
+start = Option('Start', 'option_font').add.highlight('highlight_font')
                  
-quit = HighlightOption(Option('Quit', 'option_font'), 'highlight_font')
+quit = Option('Quit', 'option_font').add.highlight('highlight_font')
 
-quit.add_select_listener(lambda option: exit_menu(menu, option))
+quit.add_select_listener(lambda _: exit_menu(menu))
 
-credits = Menu(HighlightOption(Option('Credits', 'option_font'), 'highlight_font'), screen, TITLE_POS, 'title_font', background_color=Color(165,211,97))
+credits = Option('Credits', 'option_font')\
+    .add.highlight('highlight_font')\
+    .add.menu(screen, TITLE_POS, 'title_font', background_color=Color(165,211,97))
 credits.color = Color(200,100,42)
 
 def skip_me(menu:Menu):
@@ -41,7 +43,10 @@ def skip_me(menu:Menu):
     elif(menu.down in Option.input._last_checked_input):
         menu.state += 1
     menu.state %= len(menu.get_options())
-credits_link = HighlightOption(Option('https://github/achiyazigi', 'link_font'), 'highlight_link_font')
+
+credits_link = Option('https://github/achiyazigi', 'link_font')\
+    .add.highlight('highlight_link_font')
+    
 credits_text = Option("""
     those are the credits...
     if you want to see more please visit my
@@ -52,8 +57,9 @@ credits_text = Option("""
 
 credits_text.add_active_listener(lambda _: skip_me(credits))
 
-credits_back = HighlightOption(Option('Back', 'option_font'),'highlight_font')
-credits_back.add_select_listener(lambda option: exit_menu(credits, option))
+credits_back = Option('Back', 'option_font')\
+    .add.highlight('highlight_font')
+credits_back.add_select_listener(lambda _: exit_menu(credits))
 
 graphics_list = ['Low', 'Medium', 'High', 'Ultra']
 
@@ -65,7 +71,9 @@ def volume_adjustment(option:InputOption):
     
 
 
-volume = InputOption(HighlightOption(Option('Volume:', 'option_font'), 'highlight_font'),0)
+volume = Option('Volume:', 'option_font')\
+    .add.highlight('highlight_font')\
+    .add.input(0)
 volume.add_active_listener(volume_adjustment)
 
 def graphics_adjustment(option:InputOption):
@@ -77,33 +85,41 @@ def graphics_adjustment(option:InputOption):
         shift = 1
     option.input_output = graphics_list[(index + shift)% len(graphics_list)]
     
-graphics = InputOption(Option('Graphics:', 'option_font'), graphics_list[0])
+graphics = Option('Graphics:', 'option_font')\
+    .add.input(graphics_list[0])
 graphics.add_active_listener(graphics_adjustment)
 
-back = HighlightOption(Option('Back', 'option_font'), 'highlight_font')
-back.add_select_listener(lambda option: exit_menu(options, option))
+back = Option('Back', 'option_font')\
+    .add.highlight('highlight_font')
+    
+back.add_select_listener(lambda _: exit_menu(options))
 
 
-menu = Menu(Option('Main Menu', 'option_font'),screen, TITLE_POS,'title_font', cursor=cursor)
+menu = Option('Main Menu', 'option_font')\
+    .add.menu(screen, TITLE_POS,'title_font', cursor=cursor)
 
-options = Menu(InputOption(HighlightOption(Option('Options', 'option_font'), 'highlight_font'), ':)'), screen, TITLE_POS, 'title_font', background_color=Color(75, 23, 175), cursor=cursor)
+options = Option('Options', 'option_font')\
+    .add.highlight('highlight_font')\
+    .add.input(':)')\
+    .add.menu(screen, TITLE_POS, 'title_font', background_color=Color(75, 23, 175), cursor=cursor)
 
-options.cursor = cursor
 
 
 options.add_activation_key(K_SPACE)
-options.up = K_w
-options.down = K_s
 
-volume.add_select_listener(lambda _: print(volume.input_output))
+volume.add.select_listener(lambda _: print(volume.input_output))
 
-menu.cursor_offset = -10
-options.cursor_offset = -10
+menu.cursor_offset = -20
+options.cursor_offset = -20
 
-# click_here = MouseOption(Option('Click Here!', 'option_font'))
-# click_here._event.subscribe(lambda: highlight_me(click_here))
-# click_here._event.subscribe(lambda: dont_highlight_me(click_here))
-# click_here.on_select = lambda: exit_menu(menu, click_here)
+advanced = Option('Advanced Options','option_font')\
+    .add.highlight('highlight_font')\
+    .add.menu(screen, TITLE_POS, 'title_font')\
+    .set_options([
+        Option('Back', 'option_font')\
+            .add.select_listener(lambda _: exit_menu(advanced))
+    ])
+
 menu.set_options([
     start,
     options,
@@ -114,6 +130,7 @@ menu.set_options([
 options.set_options([
     volume,
     graphics,
+    advanced,
     back
 ])
 credits.set_options([
@@ -121,6 +138,7 @@ credits.set_options([
     credits_text,
     credits_back
 ])
+
 
 menu.display_menu()
 print(volume.input_output)
