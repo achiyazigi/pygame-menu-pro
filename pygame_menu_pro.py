@@ -2,6 +2,7 @@ from types import FunctionType
 import pygame
 from pygame.locals import *
 from pygame.font import Font
+from event import Event
 
 from pygameMenuPro.event import Event
 
@@ -10,13 +11,16 @@ from pygameMenuPro.event import Event
 COLOR_BLACK = Color(0, 0, 0)
 COLOR_WHITE = Color(255, 255, 255)
 
+COLOR_BLACK = Color(0, 0, 0)
+COLOR_WHITE = Color(255, 255, 255)
+
 
 class InputManager:
     def __init__(self):
         self.last_checked_input = []
-        self.last_mouse_position: list[tuple[int, int]] = []
-        self.mouse_clicked = (False, False, False)
-        self.mouse_wheel = (0, 0)
+        self.last_mouse_position:list[tuple[int,int]] = []
+        self.mouse_clicked = (False,False,False)
+        self.mouse_wheel = (0,0)
 
     def check_input(self) -> int:
         for event in pygame.event.get():
@@ -27,11 +31,11 @@ class InputManager:
                 self.last_checked_input.append(event.key)
                 return event.key
             elif(event.type == MOUSEWHEEL):
-                self.mouse_wheel = (event.x, event.y)
+                self.mouse_wheel = (event.x, event.y) 
 
         self.last_mouse_position.append(pygame.mouse.get_pos())
         self.mouse_clicked = pygame.mouse.get_pressed()
-
+        
         return 0
 
     def reset(self):
