@@ -2,14 +2,8 @@ from types import FunctionType
 import pygame
 from pygame.locals import *
 from pygame.font import Font
-from event import Event
-
 from pygameMenuPro.event import Event
 
-
-
-COLOR_BLACK = Color(0, 0, 0)
-COLOR_WHITE = Color(255, 255, 255)
 
 COLOR_BLACK = Color(0, 0, 0)
 COLOR_WHITE = Color(255, 255, 255)
@@ -50,7 +44,7 @@ class InputManager:
         self.last_mouse_position.clear()
 
     def reset_mouse_wheel(self):
-        self.mouse_wheel = (0, 0)
+        self.mouse_wheel = (0,0)
 
 
 class FontManager:
@@ -80,14 +74,14 @@ class FontManager:
         font = self._fonts[font_str]
         lines = text.splitlines()
         maxline = max(lines, key=len)
-        surface = pygame.Surface(
-            (font.size(maxline)[0], font.get_height() * 1.25 * len(lines)))
+        surface = pygame.Surface((font.size(maxline)[0], font.get_height() * 1.25 * len(lines)), pygame.SRCALPHA, 32)
         for i, line in enumerate(lines):
             line_surf = font.render(line, True, color)
             text_rect = line_surf.get_rect()
             text_rect.centerx = surface.get_rect().centerx
             text_rect.top = i * font.get_height() * 1.25
             surface.blit(line_surf, text_rect.topleft)
+            surface.convert_alpha()
         return surface
 
 
@@ -137,13 +131,13 @@ class Option:
         """
         self._event.post_event('on_deactive', self)
 
-    def draw(self, surface: pygame.Surface, pos):
+    def draw(self, surface:pygame.Surface, pos):
         surf = self.render()
-        self.rect = surface.blit(
-            surf, (self._pos[0] - surf.get_width()//2, self._pos[1]))
+        self.rect = surface.blit(surf, (self._pos[0] - surf.get_width()//2, self._pos[1]))
 
     def render(self):
         return Option.font.draw_text(self.text, self._font_str, color=self.color)
+
 
 
 class AddExtention():
@@ -195,7 +189,7 @@ class AddExtention():
         self._option = Menu(self.option(), surface, title_pos,
                             title_font_str, options, background_color, cursor)
         return self._option
-
+    
     def mouse_menu(self, surface: pygame.Surface, title_pos: tuple[int, int], title_font_str: str = 'default_title_font', options: list[Option] = [], background_color=COLOR_BLACK, cursor: pygame.Surface = None):
         """
         convert this option to a mouse menu
@@ -203,8 +197,7 @@ class AddExtention():
         The options of this menu will be activated by mouse hover,
         and selected by mouse click.
         """
-        self._option = MouseMenu(self.option(
-        ), surface, title_pos, title_font_str, options, background_color, cursor)
+        self._option = MouseMenu(self.option(), surface, title_pos, title_font_str, options, background_color, cursor)
         return self._option
 
     def select_listener(self, func: FunctionType):
@@ -234,7 +227,6 @@ class AddExtention():
         """
         self.option()._activation_keys.append(key)
         return self.option()
-
 
 class Menu(Option):
     def __init__(self, option: Option, surface: pygame.Surface, title_pos: tuple[int, int], title_font_str: str = 'default_title_font', options: list[Option] = [], background_color=COLOR_BLACK, cursor: pygame.Surface = None):
@@ -271,8 +263,7 @@ class Menu(Option):
             self._surface.fill(self._background_color)
             # draw title:
             title_surf = Option.font.draw_text(self.text, self.title_font_str)
-            self._surface.blit(
-                title_surf, (self._title_pos[0] - title_surf.get_width()//2, self._title_pos[1]))
+            self._surface.blit(title_surf, (self._title_pos[0] - title_surf.get_width()//2, self._title_pos[1]))
             # checking input:
             k = self.input.check_input()
             self.update_state(k)
@@ -289,9 +280,7 @@ class Menu(Option):
                     option._pos = (self._title_pos[0], last_height)
                     option.draw(self._surface, option._pos)
 
-                    last_option_font = Option.font.get_font(option._font_str)
-                    text_height = option.rect.height * \
-                        1.25 * len(option.text.splitlines())
+                    text_height = option.rect.height
                     last_height = option._pos[1] + text_height
 
                 # draw cursor:
@@ -299,8 +288,7 @@ class Menu(Option):
                     selected_option = self._options[self.state]
                     option_font_size = Option.font.get_font(
                         selected_option._font_str).size(selected_option.text)
-                    self._surface.blit(self.cursor, (selected_option._pos[0] - int(
-                        option_font_size[0]//2) + self.cursor_offset, selected_option._pos[1] - int(option_font_size[1]//2)))
+                    self._surface.blit(self.cursor, (selected_option.rect.left + self.cursor_offset, selected_option.rect.top))
             # reset input list:
             Option.input.reset()
 
@@ -349,23 +337,21 @@ class Menu(Option):
         """
         return self._options
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name:str):
         return self._option.__getattribute__(name)
 
-
 class MouseMenu(Menu):
-
+    
     def __init__(self, option: Option, surface: pygame.Surface, title_pos: tuple[int, int], title_font_str: str = 'default_title_font', options: list[Option] = [], background_color=COLOR_BLACK, cursor: pygame.Surface = None):
-        super().__init__(option, surface, title_pos, title_font_str,
-                         options=options, background_color=background_color, cursor=cursor)
+        super().__init__(option, surface, title_pos, title_font_str, options=options, background_color=background_color, cursor=cursor)
         self.state = -1
-
+    
     def update_state(self, k: int):
         some_option_active = False
         for i, option in enumerate(self._options):
             rect = option.rect
             if(rect != None):
-                if(len(Option.input.last_mouse_position) > 0 and rect.collidepoint(Option.input.last_mouse_position[-1])):
+                if(len(Option.input.last_mouse_position)>0 and rect.collidepoint(Option.input.last_mouse_position[-1])):
                     if(self.state != i and self.state >= 0):
                         self._options[self.state].on_deactive()
                     some_option_active = True
@@ -377,8 +363,7 @@ class MouseMenu(Menu):
 
     def set_options(self, options: list[Option]):
         super().set_options(options)
-
-        def select_with_mouse(option: Option):
+        def select_with_mouse(option:Option):
             if(Option.input.mouse_clicked[0]):
                 option.on_select()
         for option in self._options:

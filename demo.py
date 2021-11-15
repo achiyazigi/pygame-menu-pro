@@ -1,4 +1,4 @@
-from os import link
+
 from pygame import display
 from pygame_menu_pro import *
 import pygame
@@ -20,9 +20,14 @@ Option.font.set_default_highlight(
 def start_game():
     menu.run_display = False
     while(True):
-        pygame.draw.rect(screen, Color(255, 255, 255), Rect(100, 100, 50, 50))
+        screen.fill(Color(62,241,100))
+        title_surf = Option.font.draw_text('Game Started', 'default_title_font', color=Color(132,37,92))
+        title_surf.get_rect().center = screen.get_rect().center
+        screen.blit(title_surf, title_surf.get_rect().center)
+        Option.input.check_input()
         Option.clock.tick(60)
         display.update()
+        Option.input.reset()
 
 
 def vol_change(option: Option):
@@ -36,18 +41,17 @@ start = Option('Start').add.highlight(
 ).add.select_listener(lambda _: start_game())
 volume = Option('volume').add.highlight().add.input(
     0).add.active_listener(vol_change)
-options = Option('Options').add.input(0).add.menu(screen, TITLE_POS).set_options([
+options = Option('Options').add.menu(screen, TITLE_POS).set_options([
     Option('those are the options..')
 ]).add.highlight()
-# Menu(Input(Option))
+
 options.add.active_listener(vol_change)
-menu = Option('menu').add.menu(screen, TITLE_POS).set_options([
+menu = Option('menu').add.mouse_menu(screen, TITLE_POS).set_options([
     start,
     volume,
     options
 ])
-menu = MouseMenu(menu._option, menu._surface, menu._title_pos,
-                 menu.title_font_str, menu._options, menu._background_color, menu.cursor)
+
 menu.display_menu()
 
 # game.vol = volume.input_output
