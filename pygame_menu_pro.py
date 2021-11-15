@@ -12,6 +12,9 @@ COLOR_WHITE = Color(255, 255, 255)
 class InputManager:
     def __init__(self):
         self.last_checked_input = []
+        self.last_mouse_position:list[tuple[int,int]] = []
+        self.mouse_clicked = (False,False,False)
+        self.mouse_wheel = (0,0)
 
     def check_input(self) -> int:
         for event in pygame.event.get():
@@ -21,10 +24,27 @@ class InputManager:
             elif(event.type == KEYDOWN):
                 self.last_checked_input.append(event.key)
                 return event.key
+            elif(event.type == MOUSEWHEEL):
+                self.mouse_wheel = (event.x, event.y) 
+
+        self.last_mouse_position.append(pygame.mouse.get_pos())
+        self.mouse_clicked = pygame.mouse.get_pressed()
+        
         return 0
+
+    def reset(self):
+        self.reset_last_checked()
+        self.reset_last_mouse_position()
+        self.reset_mouse_wheel()
 
     def reset_last_checked(self):
         self.last_checked_input.clear()
+
+    def reset_last_mouse_position(self):
+        self.last_mouse_position.clear()
+
+    def reset_mouse_wheel(self):
+        self.mouse_wheel = (0,0)
 
 
 class FontManager:
@@ -50,14 +70,18 @@ class FontManager:
     def set_default_title(self, font: Font):
         self.add_font('default_title_font', font)
 
-    def draw_text(self, surface: pygame.Surface, text: str, pos: tuple[int, int], font_str: str, color: Color = Color(255, 255, 255)):
+    def draw_text(self, text: str, font_str: str, color: Color = Color(255, 255, 255)):
         font = self._fonts[font_str]
         lines = text.splitlines()
+        maxline = max(lines, key=len)
+        surface = pygame.Surface((font.size(maxline)[0], font.get_height() * 1.25 * len(lines)))
         for i, line in enumerate(lines):
-            surf = font.render(line, True, color)
-            text_rect = surf.get_rect()
-            text_rect.center = (pos[0], pos[1] + i * font.get_height() * 1.25)
-            surface.blit(surf, text_rect)
+            line_surf = font.render(line, True, color)
+            text_rect = line_surf.get_rect()
+            text_rect.centerx = surface.get_rect().centerx
+            text_rect.top = i * font.get_height() * 1.25
+            surface.blit(line_surf, text_rect.topleft)
+        return surface
 
 
 class Option:
@@ -78,6 +102,7 @@ class Option:
         self._font_str = font_str
         self._activation_keys: list[int] = [K_RETURN]
         self.color = color
+        self.rect = None
 
     def is_selected(self):
         """
@@ -105,9 +130,13 @@ class Option:
         """
         self._event.post_event('on_deactive', self)
 
-    def draw(self, surface, pos):
-        self.font.draw_text(surface, self.text, pos,
-                            self._font_str, color=self.color)
+    def draw(self, surface:pygame.Surface, pos):
+        surf = self.render()
+        self.rect = surface.blit(surf, (self._pos[0] - surf.get_width()//2, self._pos[1]))
+
+    def render(self):
+        return Option.font.draw_text(self.text, self._font_str, color=self.color)
+
 
 
 class AddExtention():
@@ -121,14 +150,34 @@ class AddExtention():
         """
         Add a Highlight decorator
         """
-        self._option = HighlightOption(self.option(), font_str)
+
+        self._regular_font_str = self._option._font_str
+
+        def highlight_me(option: Option):
+            option._font_str = font_str
+
+        def dont_highlight_me(option: Option):
+            option._font_str = self._regular_font_str
+        self._option.add.active_listener(highlight_me)\
+            .add.deactive_listener(dont_highlight_me)
+
         return self._option
 
     def input(self, input):
         """
         add input decorator
         """
-        self._option = InputOption(self.option(), input)
+        head = self._option.text
+        setattr(self._option, 'input_output', input)
+        self._option.left = K_LEFT
+        self._option.right = K_RIGHT
+        self._option.input_output = input
+        self._option.text = head + '  ' + str(self._option.input_output)
+
+        def update_text_with_input(option: Option):
+            option.text = head + '  ' + str(self._option.input_output)
+        self._option.add.active_listener(update_text_with_input)
+
         return self._option
 
     def menu(self, surface: pygame.Surface, title_pos: tuple[int, int], title_font_str: str = 'default_title_font', options: list[Option] = [], background_color=COLOR_BLACK, cursor: pygame.Surface = None):
@@ -168,27 +217,12 @@ class AddExtention():
         self.option()._activation_keys.append(key)
         return self.option()
 
-
-class HighlightOption(Option):
-    def __init__(self, option: Option, highlight_font_str: str):
-        super().__init__(option.text, option._font_str, option.color, option._event)
-        self._highlight_font_str = highlight_font_str
-        self._regular_font_str = option._font_str
-
-        def highlight_me(option: Option):
-            option._font_str = self._highlight_font_str
-
-        def dont_highlight_me(option: Option):
-            option._font_str = self._regular_font_str
-        self.add.active_listener(highlight_me)\
-            .add.deactive_listener(dont_highlight_me)
-
-
 class Menu(Option):
     def __init__(self, option: Option, surface: pygame.Surface, title_pos: tuple[int, int], title_font_str: str, options: list[Option] = [], background_color=COLOR_BLACK, cursor: pygame.Surface = None):
         super().__init__(option.text, option._font_str, option.color, option._event)
 
         # private:
+        self._option = option
         self._surface = surface
         self._title_pos = title_pos
         self._options = options
@@ -217,16 +251,16 @@ class Menu(Option):
         while(self.run_display):
             self._surface.fill(self._background_color)
             # draw title:
-            Option.font.draw_text(
-                self._surface, self.text, self._title_pos, self.title_font_str)
-
+            title_surf = Option.font.draw_text(self.text, self.title_font_str)
+            self._surface.blit(title_surf, (self._title_pos[0] - title_surf.get_width()//2, self._title_pos[1]))
             # checking input:
             k = self.input.check_input()
             self.update_state(k)
             if(len(self._options) > 0):
 
                 # activate selected option:
-                self._options[self.state].on_active()
+                if(self.state >= 0):
+                    self._options[self.state].on_active()
 
                 # draw options:
                 last_height = Option.font.get_font(
@@ -236,8 +270,7 @@ class Menu(Option):
                     option.draw(self._surface, option._pos)
 
                     last_option_font = Option.font.get_font(option._font_str)
-                    text_height = last_option_font.get_height(
-                    ) * 1.25 * len(option.text.splitlines())
+                    text_height = option.rect.height * 1.25 * len(option.text.splitlines())
                     last_height = option._pos[1] + text_height
 
                 # draw cursor:
@@ -248,7 +281,7 @@ class Menu(Option):
                     self._surface.blit(self.cursor, (selected_option._pos[0] - int(
                         option_font_size[0]//2) + self.cursor_offset, selected_option._pos[1] - int(option_font_size[1]//2)))
             # reset input list:
-            Option.input.reset_last_checked()
+            Option.input.reset()
 
             # refresh:
             pygame.display.update()
@@ -295,15 +328,32 @@ class Menu(Option):
         """
         return self._options
 
+    def __getattr__(self, name:str):
+        return self._option.__getattribute__(name)
 
-class InputOption(Option):
-    def __init__(self, option: Option, input_output):
-        super().__init__(option.text, option._font_str, option.color, option._event)
-        self.left = K_LEFT
-        self.right = K_RIGHT
-        self.input_output = input_output
-        self.text = option.text + '  ' + str(self.input_output)
+class MouseMenu(Menu):
+    
+    def __init__(self, option: Option, surface: pygame.Surface, title_pos: tuple[int, int], title_font_str: str, options: list[Option] = [], background_color=COLOR_BLACK, cursor: pygame.Surface = None):
+        super().__init__(option, surface, title_pos, title_font_str, options=options, background_color=background_color, cursor=cursor)
+        def select_with_mouse(option:Option):
+            if(Option.input.mouse_clicked[0]):
+                option.on_select()
+        for option in self._options:
+            option.add.active_listener(select_with_mouse)
+        self.state = -1
+    
+    def update_state(self, k: int):
+        some_option_active = False
+        for i, option in enumerate(self._options):
+            rect = option.rect
+            if(rect != None):
+                if(len(Option.input.last_mouse_position)>0 and rect.collidepoint(Option.input.last_mouse_position[-1])):
+                    if(self.state != i and self.state >= 0):
+                        self._options[self.state].on_deactive()
+                    some_option_active = True
+                    self.state = i
+        if(not some_option_active):
+            if(self.state >= 0):
+                self._options[self.state].on_deactive()
+            self.state = -1
 
-        def update_text_with_input(_option: Option):
-            _option.text = option.text + '  ' + str(self.input_output)
-        self.add.active_listener(update_text_with_input)
